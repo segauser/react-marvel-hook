@@ -1,45 +1,42 @@
-import { Component } from "react";
+
+import {lazy, Suspense} from 'react'; // ленивая загрузка, Suspense отвечает за отлов ошибок
+import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
+
+// import {MainPage, ComicsPage, SingleComicLayout} from '../pages'; //webpack автоматически ищет index.js
 import AppHeader from "../appHeader/AppHeader";
-import RandomChar from "../randomChar/RandomChar";
-import CharList from "../charList/CharList";
-import CharInfo from "../charInfo/CharInfo";
-import ErrorBoundary from "../errorBoundary/ErrorBoundary";
+import Spinner from '../spinner/Spinner';
 
-import decoration from '../../resources/img/vision.png';
+// Динамич-е импорты после статических!!!
+const Page404 = lazy(() => import('../pages/404')); 
+const MainPage = lazy(() => import('../pages/MainPage'));
+const ComicsPage = lazy(() => import('../pages/ComicsPage'));
+const SingleComicLayout = lazy(() => import('../pages/singleComicLayout/SingleComicLayout'));
+const SingleCharacterLayout = lazy(() => import('../pages/singleCharacterLayout/SingleCharacterLayout'));
+const SinglePage = lazy(() => import('../pages/SinglePage'));
 
-class App extends Component {
-    
-    state = {
-        selectedChar: null
-    }
+const App = () => {
 
-    onCharSelected = (id) => {
-        this.setState({
-            selectedChar: id
-        })
-    }
-
-    render() {
-        return (
+    return (
+        <Router>
             <div className="app">
                 <AppHeader/>
                 <main>
-                    <ErrorBoundary>
-                        <RandomChar/>
-                    </ErrorBoundary>
-                    <div className="char__content">
-                        <ErrorBoundary>
-                            <CharList onCharSelected={this.onCharSelected}/>
-                        </ErrorBoundary> {/* Поднятие состояние из компонента CharList, установка в state и передача в CharInfo*/}
-                        <ErrorBoundary>
-                            <CharInfo charId={this.state.selectedChar}/>
-                        </ErrorBoundary>
-                    </div>
-                    <img className="bg-decoration" src={decoration} alt="vision"/>
+                    <Suspense fallback={<Spinner/>}> {/*Увидим доп спинер при ленивом дин-м импорте вверху страницы, подгрузка элемента только когда на страцу перешли*/}
+                        <Routes>
+                            <Route path="/" element={<MainPage/>}/>
+                            <Route path="/comics" element={<ComicsPage/>}/>
+                            {/*Произвольное название ключа(:id) нашего параметра для формирования дин-х путей*/}
+                            <Route path="/comics/:id" element={<SinglePage Component={SingleComicLayout} dataType='comic'/>}/> 
+                            <Route path="/characters/:id" element={<SinglePage Component={SingleCharacterLayout} dataType='character'/>}/>
+                            <Route path="*" element={<Page404/>}/>
+                        </Routes>
+                    </Suspense>
+
                 </main>
             </div>
-        )
-    }
+        </Router>
+    )
 }
+
 
 export default App;

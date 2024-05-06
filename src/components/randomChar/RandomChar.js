@@ -1,98 +1,64 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Spinner from '../spinner/Spinner';
 import ErrorMessage from '../errorMessage/ErrorMessage';
-import MarvelService from '../../services/MarvelService';
+import useMarvelService from '../../services/MarvelService';
 
 import './randomChar.scss';
 import mjolnir from '../../resources/img/mjolnir.png';
 
-class RandomChar extends Component {
-    // constructor(props){
-    //     super(props)
-    //     console.log('constructor')
-    // }
+const RandomChar = () => {
 
-    state = {
-        char: {},
-        loading: true,
-        error: false
-    }
-    
+    const [char, setChar] = useState(null);
 
-    marvelService = new MarvelService();
+    const {loading, error, getCharacter, clearError} = useMarvelService();
 
-    componentDidMount() {
-        this.updateChar(); // Жизненный цикл компонента(constructor->render->mount->update->render), вызываем именно здесь 
-        // this.timerId = setInterval(this.updateChar, 15000);
-        // console.log('mount')
-    }
+    useEffect(() => {
+        updateChar();
+        // const timerId = setInterval(updateChar, 10000);
 
-    componentWillUnmount() {
-        clearInterval(this.timerId);
-        // console.log('unmount')
-    }
+        // return () => {
+        //     clearInterval(timerId)
+        // }
+    }, [])
 
     //данные загружены
-    onCharLoaded = (char) => {
-        // console.log('update')
-        this.setState({
-            char, 
-            loading: false
-        })
+    const onCharLoaded = (char) => {
+        setChar(char);
     }
 
-    onCharLoading = () => {
-        this.setState({
-            loading: true
-        })
-    }
-
-    onError = () => {
-        this.setState({
-            loading: false,
-            error: true
-        })
-    }
-
-    updateChar = () => {
+    const updateChar = () => {
+        clearError(); // если вылетит 404(персонаж не найден), то при нажатие try it покажет следующего персонажа
         const id = Math.floor(Math.random() * (1011400 - 1011000) + 1011000);
-        this.onCharLoading();
-        this.marvelService
-            .getCharacter(id)
-            .then(this.onCharLoaded) //формируем setState объекта, данные автоматически передаются по цепочке в метод onCharLoaded
-            .catch(this.onError);
+        getCharacter(id)
+            .then(onCharLoaded); //формируем setState объекта, данные автоматически передаются по цепочке в метод onCharLoaded
     }
 
-    render() {
-        // console.log('render')
+    const errorMessage = error ? <ErrorMessage/> : null;
+    const spinner = loading ? <Spinner/> : null;
+    const content = !(loading || error || !char) ? <View char={char}/> : null; //передаём объект char из this.state в компонент View 
 
-        const {char, loading, error} = this.state;
-        const errorMessage = error ? <ErrorMessage/> : null;
-        const spinner = loading ? <Spinner/> : null;
-        const content = !(loading || error) ? <View char={char}/> : null; //передаём объект char из this.state в компонент View 
-
-        return (
-            <div className="randomchar">
-                {errorMessage}
-                {spinner}
-                {content}
-                <div className="randomchar__static">
-                    <p className="randomchar__title">
-                        Random character for today!<br/>
-                        Do you want to get to know him better?
-                    </p>
-                    <p className="randomchar__title">
-                        Or choose another one
-                    </p>
-                    <button onClick={this.updateChar} className="button button__main">
-                        <div className="inner">try it</div>
-                    </button>
-                    <img src={mjolnir} alt="mjolnir" className="randomchar__decoration"/>
-                </div>
+    return (
+        <div className="randomchar">
+            {errorMessage}
+            {spinner}
+            {content}
+            <div className="randomchar__static">
+                <p className="randomchar__title">
+                    Random character for today!<br/>
+                    Do you want to get to know him better?
+                </p>
+                <p className="randomchar__title">
+                    Or choose another one
+                </p>
+                <button onClick={updateChar} className="button button__main">
+                    <div className="inner">try it</div>
+                </button>
+                <img src={mjolnir} alt="mjolnir" className="randomchar__decoration"/>
             </div>
-        )
-    }
+        </div>
+    )
 }
+
 
 //Разделение рендеринга и логики
 const View = ({char}) => {
