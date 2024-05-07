@@ -1,4 +1,4 @@
-import {useState, useEffect, useRef} from 'react';
+import {useState, useEffect, useRef, useMemo} from 'react';
 import PropTypes from 'prop-types';
 import {CSSTransition, TransitionGroup} from 'react-transition-group';
 
@@ -7,6 +7,22 @@ import ErrorMessage from '../errorMessage/ErrorMessage';
 import useMarvelService from '../../services/MarvelService';
 import './charList.scss';
 
+// FSM
+const setContent = (process, Component, newItemLoading) => {
+    switch (process) {
+        case 'waiting':
+            return <Spinner/>;
+        case 'loading':
+            return newItemLoading ? <Component/> : <Spinner/>;
+        case 'confirmed':
+            return <Component/>;
+        case 'error':
+            return <ErrorMessage/>;
+        default:
+            throw new Error('Unexpected process state');
+    }
+}
+
 const CharList = (props) => {
 
     const [charList, setCharList] = useState([]);
@@ -14,17 +30,27 @@ const CharList = (props) => {
     const [offset, setOffset] = useState(210);
     const [charEnded, setCharEnded] = useState(false); //Когда персонажи закончились
     
-    const {loading, error, getAllCharacters} = useMarvelService();
+    const {getAllCharacters, process, setProcess} = useMarvelService();
 
-    // Так как useEffect запускается после рендера, то мы можем ещё вызывать выше, чем она объявлена
+    // Так как useEffect запускается после рендера, то мы можем onRequest вызывать выше, чем она объявлена
     useEffect(() => {
         onRequest(offset, true);
     }, [])
+
+//     // Если надо выполнить отписку в useEffect(пример таймеров) нужно вернуть колбэк
+//     useEffect(() => {
+//         const timerId = setInterval(() => {count + 1}, 1000);
+    
+//         return () => {
+//             clearInterval(timerId);
+//         }
+//    }, [something])
 
     const onRequest = (offset, initial) => {
         initial ? setNewItemLoading(false) : setNewItemLoading(true); 
         getAllCharacters(offset)
             .then(onCharListLoaded)
+            .then(() => setProcess('confirmed'))
     }
 
     const onCharListLoaded = (newCharList) => {
@@ -67,6 +93,7 @@ const CharList = (props) => {
             }
             
             return (
+                // После добавления концепции FSM не работает анимация
                 <CSSTransition key={item.id} timeout={500} classNames="char__item">
                     <li 
                         className="char__item"
@@ -99,16 +126,16 @@ const CharList = (props) => {
         )
     }
     
-    const items = renderItems(charList);
+    const elements = useMemo(() => {
+        return setContent(process, () => renderItems(charList), newItemLoading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [process])
 
-    const errorMessage = error ? <ErrorMessage/> : null;
-    const spinner = loading && !newItemLoading ? <Spinner/> : null;
+    // const items = renderItems(charList);
 
     return (
         <div className="char__list">
-            {errorMessage}
-            {spinner}
-            {items}
+            {elements}
             <button className="button button__main button__long"
             disabled={newItemLoading}
             style={{'display': charEnded ? 'none' : 'block'}}
